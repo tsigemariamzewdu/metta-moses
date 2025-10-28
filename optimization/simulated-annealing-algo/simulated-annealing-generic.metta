@@ -231,7 +231,7 @@
               ((and $xOver (not $hasImproved)) $lastChance 
                 $newCenter $newBestCScore $newBestScore 
                 $updatedNumInstances $newDistance (+ 1 $i))
-              ($estimateNeighborhoodFn $estimateVar)
+              ($estimateNeighborhoodFn)
               $transformFn
               $sampleNewInstancesFn
               $crossoverFn)
