@@ -1,117 +1,131 @@
 
-; (= (scoreInstancesGeneric 
-;       $transformFn             ;; could be transform or transformFs
-;       $updatedInstSet
-;       $rep
-;       $table
-;       $cpxCoeff
-;       $miConfi
-;       $prePenalty
-;       $preMinActivation
-;       $preMaxActivation
-;       $prePositive
-;       $scorerType)
-
-;   (if (== $transformFn transform)
-;       ;; GENERAL OPTIMIZATION
-;       (let* (
-;         ((mkSInstSet $scoredInstances)
-;           ($transformFn $updatedInstSet $rep $table $cpxCoeff))
-;         ($updatedDeme (mkDeme $rep (mkSInstSet $scoredInstances) $id))
-;       )
-;         (println! "Scored instances (general):" $scoredInstances)
-;         ($updatedDeme (mkSInstSet $scoredInstances)))
-
-;       ;;  FEATURE SELECTION
-;       (let* (
-;         ((mkSInstSet $scoredInstances)
-;           ($transformFn $updatedInstSet $table 
-;                         $miConfi $prePenalty $preMinActivation 
-;                         $preMaxActivation $prePositive $scorerType))
-;         ($updatedInstSetScored (mkSInstSet $scoredInstances))
-;       )
-;         (println! "Scored feature subsets (FS):" $scoredInstances)
-;         ($updatedInstSetScored (mkSInstSet $scoredInstances)))
-;   )
-; )
+; Calculates the difference between two composite scores.
+(= (cDelta $c1 $c2)
+  (let*
+    (
+      (($pl $pr $cl $cr) ((getPenScore $cs1) (getPenScore $cs2) (getComp $cs1) (getComp $cs2)))
+      ($pD (- $pl $pr))
+      ($cD (- $cl $cr))
+      ($wD (+ (* 0.5 $pD) (* 0.5 $cD)))
+    )
+     $wD
+  )
+)
 
 
+;; Calculates instance energy using the composite score of that instance (
+;;  (this is based on the C++ version) the composite score is the sum of
+;;  the bScore and the penalized score.
+(: getEnergy (-> Cscore Number))
+(= (getEnergy $cScore)
+  (let $pScore (getPenScore $cScore) (* -1 $pScore))
+)
+
+;; Acceptance probability which is based on the energy of the current and new instance, and the temperature.
+(: acceptanceProb (-> Number Number Number Number))
+(= (acceptanceProb $energy1 $energy2 $Temp)
+  (if (< $energy2 $energy1)
+    1.0
+    (math-exp (/ (- $energy1 $energy2) $Temp))
+  )
+)
+
+;;helper functions
+(= (extractInstanceFromPOA (mkDeme $rep $instSet $id))$instSet)
+
+(= (extractRepFromPOA (mkDeme $rep $instSet $id))$rep)
+
+(= (extractDiscFromPOA (mkDeme (mkRep (mkKbMap (mkDscKbMp $idxMp) (mkDscMp $disc)) $tree) $instSet $id))($disc))
+
+(= (extractCpxCoeffFromTable (mkTruthTableBScore $cpxCoeff $size $iTable)) $cpxCoeff )
+
+(= (extractLabelFromTable (mkITable $rows $labels))($labels))
 
 
-(=(simulated-annealing ($idxMp $disc $tree $instSet $id) ($cpxCoeff $size $iTable) $initCenter $hyperParams )
-             (let * (
-              ($deme (mkDeme (mkRep (mkKbMap (mkDscKbMp $idxMp) (mkDscMp $disc)) $tree) $instSet $id))
-              ($table (mkTruthTableBScore $cpxCoeff $size $iTable))
-              ($estimateVar ($disc)))
 
-             )
 
-             (println! "Running general optimization...")
-        ; call unified SA loop
-        (simulated-annealing-generic 
-          $deme  ;;deme
-          $table  ;;table
-          $initCenter  ;;initcenter
-          (1 3 0) ;;$constparams ($maxDist $minXoverNeighbors $bestPossibleScore)
-          $hyperParams ;;($Temp $finalTemp $coolRate $isInit $maxIter)
-          () ;;$scorerParams
-          () ; $scorerType empty for general optimization
-          (False False $initCenter (worstCscore) (* -1 (pow-math 10 308)) 0 0 1) ;;($alreadyXover $lastChance $prevCenter $bestCScore $bestScore $currentNInstances $d $i) )) ;;$params
-          (estimateNeighborhood $estimateVar)  ;; estimateneighborhood with its one argument
-          (transform  $iTable $cpxCoeff)
-          crossover
-          sampleNewInstances
-        ))
-          
-(=(simulated-annealing $instSet  ($rows $labels) $initCenter $hyperParams)
 
-      (let* (
-        ($deme $instSet)
-        ($table (mkITable $rows $labels))
-        ($estimateVar $labels)
-      ))
-        
-      
-        (println! "Running feature selection SA...")
-        ; call unified SA loop
-        (simulated-annealing-generic 
-          $deme ;;instset
-          $table  ;;itable
+(=(simulated-annealing $POA $table $initCenter $hyperParams $scorerType )
+
+  (if (== $scorerType mi );; if the scorer type is mi do feature selection optimization
+      ( (let * (
+
+          ($instSet $POA)
+          ($iTable $table)
+          ))
+
+    (println! "Running feature selection optimization...")
+    ; call unified SA loop
+        (simulated-annealing-generic
+          $instSet
+          $iTable
           $initCenter 
           (3 3 1) 
           $hyperParams 
           $scorerParams 
           $scorerType
           (False False $centerInst 0 (* -1 (pow-math 10 308)) 0 0 1)
-          (estimateNeighborhoodFs  $estimateVar)
+          estimateNeighborhoodFs
           crossoverFs 
           sampleNewInstancesFs 
-          (transformFs $scorerParams $scorerType) ))  
+          transformFs
+
+        ;; else part for general optimization
+        ))
+        ((let * (
+ 
+        ($deme $POA)
+        ($TruthTableBScore $table)
+        )
+        )
+  
+        (println! "Running general optimization...")
+        ; call unified SA loop
+        (simulated-annealing-generic 
+        $deme  
+        $TruthTableBScore  
+        $initCenter  
+        (1 3 0) ;;$constparams ($maxDist $minXoverNeighbors $bestPossibleScore)
+        $hyperParams ;;($Temp $finalTemp $coolRate $isInit $maxIter)
+        () ;;$scorerParams
+        () ; $scorerType empty for general optimization
+        (False False $initCenter (worstCscore) (* -1 (pow-math 10 308)) 0 0 1) ;;($alreadyXover $lastChance $prevCenter $bestCScore $bestScore $currentNInstances $d $i) )) ;;$params
+        estimateNeighborhood  
+        transform  
+        crossover
+        sampleNewInstances
+        )))
 
 ;;simulated annealing generic 
 (: simulated-annealing-generic (-> Deme (TruthTableBScore $a) Instance $constParams $hyperParams  $scorerParams $scorerType $estimateneighborhoodFn $transformfn
                               $sampleNewInstancesfn $crossoverfn $$params (Instance Deme $state)))
-( =(simulated-annealing-generic  $deme
-                              $table
-                              $initCenter
-                              ($maxDist $minXoverNeighbors $bestPossibleScore)
-                              ($Temp $finalTemp $coolRate $isInit $maxIter)
-                              ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
-                              $scorerType
-                              ($alreadyXover $lastChance $prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i)
-                              ($estimateneighborhoodfn $estimateVar)
-                              ($transformfn $cpxCoeffOrscorerParams $iTableOrScorerType)
-                              $sampleNewInstancesfn
-                              $crossoverfn
+( =(simulated-annealing-generic $POA
+                                $table
+                                $initCenter
+                                ($maxDist $minXoverNeighbors $bestPossibleScore)
+                                ($Temp $finalTemp $coolRate $isInit $maxIter)
+                                ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
+                                $scorerType
+                                ($alreadyXover $lastChance $prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i)
+                                $estimateneighborhoodfn
+                                $transformfn
+                                $sampleNewInstancesfn
+                                $crossoverfn
 
                             )
     (if (or (<= $Temp $finalTemp) (<= $maxIter 0))
-          ($prevCenter  $deme ($prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i))
+          ($prevCenter  $POA ($prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i))
 
           ;;continue search
           (let* (
             (()(println! (Iteration : $i, Temperature : $Temp)))
             (() (println! ""))
+
+            ($isFS (== $crossoverFn crossoverFs)) ;;flag to detect feature selection
+
+            ($estimateVar (if $isFS 
+                  (($labels (extractLabelFromTable $table)))
+                  (($disc (extractDiscFromPOA $POA)))))
 
           ;;neighborhood estimation
 
@@ -123,29 +137,46 @@
           ($largeNbh (>= $totalNNeighbors $minXoverNeighbors))
           ($xOver (and (> $i 2) (and (not $alreadyXover) (or $largeNbh $lastChance))))
 
+
           ;;instance generation
+          (($updatedPOA $newInstances) (if $isFS 
+                                                (if $xOver
+                                                  ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
+                                                  ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $table $POA $d
+                                                ))
+                                                ( if $xOver
+                                                  ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
+                                                  ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $POA $d)
+                                                )))
+          
+          (($updatedInstSet) (if $isFS 
+                                    ($updatedPOA)
+                                    (extractInstancesFromPOA $updatedPOA)
+          ))
 
-           (if (== $crossoverFn crossoverFs) ($updatedDeme (mkDeme $rep $updatedInstSet $id))($updatedDeme $updatedInstSet))
-           (($updatedDeme $newInstances) 
-              (if $xOver
-                ($crossoverFn $currentNInstances $nNewNeighbors $prevCenter $deme)
-                ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $table $deme $d))) ;;i could not find definition for sample new instances
 
+          (() (println! (New instances: $updatedInstSet)))
+          (() (println! ""))
 
-              (() (println! (New feature subsets / instancnes : $updatedDeme)))
-              (() (println! ""))
+          ($repOrItable (if $isFS 
+                              $table
+                              (extractRepFromPOA $updatedPOA)
+          ))
+          ($iTableOrScorerParams (if $isFS 
+                                      ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
+                                      $table
+          ))
+          ($cpxCoeffOrscorerType (if $isFS
+                                      $scorerType
+                                      (extractCpxCoeffFromTable $table)
+          ))
+         
+          ;;score the new instance
+          ((mkSInstSet $scoredInstances) $transformFn $updatedInstSet $repOrItable  $iTableOrScorerParams $cpxCoeffOrscorerType))
+                                                    
 
-              ;;score the new instance
-              
-              (if (== $crossoverFn crossoverFs) (
-                ((mkSInstSet $scoredInstances) ($transformFn $updatedDeme  $table $cpxCoeffOrscorerParams $iTableOrScorerType))
-                ($updatedDemeScored (mkSInstSet $scoredInstances))
-              )((mkSInstSet $scoredInstances) ($transformFn $updatedDeme $rep  $table $cpxCoeffOrscorerParams $iTableOrScorerType))
-                  ($updatedDemeScored (mkDeme $rep (mkSInstSet $scoredInstances) $id))
-              )
-               
-              (() (println! (Scored instances: $scoredInstances)))
-              (() (println! ""))
+          (() (println! (Scored instances: $scoredInstances)))
+          (() (println! ""))
               
               
               ;;find best 
@@ -154,7 +185,10 @@
                           (mkSInst (mkPair $initCenter $bestRawOrCScore))
                               $scoredInstances))
 
-              ($newBestScore (getPenScore (Pair.second $newBestInstPair)))
+              
+              ($newBestScore (if ($isFS 
+                                (Pair.second $newBestInstPair )
+                                (getPenScore (Pair.second $newBestInstPair)))
               ($hasImproved (> $newBestScore (+ $bestScore 0.5)))
 
               (() (println! (New best instance: $newBestInstPair)))
@@ -162,8 +196,8 @@
               (() (println! ""))
 
               ;; energy calculation
-              ($energy (getEnergy $bestRawOrCScore))
-              ($newEnergy (getEnergy (Pair.second $newBestInstPair)))
+              ($energy (if $isFS (* -1 $bestRawOrCScore )(getEnergy $bestRawOrCScore)))
+              ($newEnergy (if $isFS (* -1 (Pair.second $newBestInstPair) (getEnergy (Pair.second $newBestInstPair)))
               ($acceptanceProb (acceptanceProb $energy $newEnergy $Temp))
               ($randomFloat (rand-random))
               ($actualAcceptanceProb (* $acceptanceProb 0.85))
@@ -204,7 +238,5 @@
                 
 
 
-              ))
-    )
-        
-
+              )))
+            ))))
