@@ -72,7 +72,7 @@
 !(assertEqual
     !(let*
        (
-            (($instance (mkDeme $rep (mkSInstSet $instSet) $id) $state) (simulated-annealing-generic deme table (mkInst (Cons 0 (Cons 0 Nil))) (20 0.01 0.1 True 5) ()))
+            (($instance (mkDeme $rep (mkSInstSet $instSet) $id) $state) (simulated-annealing deme table (mkInst (Cons 0 (Cons 0 Nil))) (20 0.01 0.1 True 5) ()))
             ($instanceCount (List.length $instSet))
             ($scoredElems (List.map isScored $instSet))
        )
@@ -82,11 +82,11 @@
 )
 
 !(assertEqual
-   (let*
+  (let*
      (
-       (($instance (mkSInstSet $instSet) $state) (simulated-annealing-generic (mkSInstSet Nil) itable (mkInst (Cons 1 (Cons 0 Nil)))(20 0.01 0.1 True 5) mi))
-       ($instanceCount (List.length $instSet))
-       ($scoredElems (List.map isScored $instSet))
+       (($instance (mkSInstSet $instSet) $state) (simulated-annealing (mkSInstSet Nil) itable (mkInst (Cons 1 (Cons 0 Nil)))(20 0.01 0.1 True 5) mi))
+      ($instanceCount (List.length $instSet))
+      ($scoredElems (List.map isScored $instSet))
      )
      ((>= $instanceCount 4) (List.any $scoredElems)))
    (True True))

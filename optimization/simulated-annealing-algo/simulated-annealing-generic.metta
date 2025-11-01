@@ -13,7 +13,7 @@
 )
 
 
-;; Calculates instance energy using the composite score of that instance (
+;; Calculates instance energy using the composite score of that instance 
 ;;  (this is based on the C++ version) the composite score is the sum of
 ;;  the bScore and the penalized score.
 (: getEnergy (-> Cscore Number))
@@ -43,19 +43,13 @@
 
 
 
-
-
-(=(simulated-annealing $POA $table $initCenter $hyperParams $scorerType )
-
-  (if (== $scorerType mi );; if the scorer type is mi do feature selection optimization
-      ( (let * (
-
+(= (simulated-annealing-main $POA $table $initCenter $hyperParams $scorerType)
+  (if (== $scorerType mi)  ;; if the scorer type is mi do feature selection optimization
+      (let* (
           ($instSet $POA)
           ($iTable $table)
-          ))
-
-    (println! "Running feature selection optimization...")
-    ; call unified SA loop
+        )
+        (println! "Running feature selection optimization...")
         (simulated-annealing-generic
           $instSet
           $iTable
@@ -69,36 +63,35 @@
           crossoverFs 
           sampleNewInstancesFs 
           transformFs
-
-        ;; else part for general optimization
-        ))
-        ((let * (
- 
+        )
+      )
+    ;; else part for general optimization
+    (let* (
         ($deme $POA)
         ($TruthTableBScore $table)
-        )
-        )
-  
-        (println! "Running general optimization...")
-        ; call unified SA loop
-        (simulated-annealing-generic 
+      )
+      (println! "Running general optimization...")
+      (simulated-annealing-generic 
         $deme  
         $TruthTableBScore  
         $initCenter  
-        (1 3 0) ;;$constparams ($maxDist $minXoverNeighbors $bestPossibleScore)
-        $hyperParams ;;($Temp $finalTemp $coolRate $isInit $maxIter)
-        () ;;$scorerParams
-        () ; $scorerType empty for general optimization
-        (False False $initCenter (worstCscore) (* -1 (pow-math 10 308)) 0 0 1) ;;($alreadyXover $lastChance $prevCenter $bestCScore $bestScore $currentNInstances $d $i) )) ;;$params
+        (1 3 0)
+        $hyperParams
+        ()
+        ()
+        (False False $initCenter (worstCscore) (* -1 (pow-math 10 308)) 0 0 1)
         estimateNeighborhood  
         transform  
         crossover
         sampleNewInstances
-        )))
+      )
+    )
+  )
+)
 
 ;;simulated annealing generic 
-(: simulated-annealing-generic (-> Deme (TruthTableBScore $a) Instance $constParams $hyperParams  $scorerParams $scorerType $estimateneighborhoodFn $transformfn
-                              $sampleNewInstancesfn $crossoverfn $$params (Instance Deme $state)))
+;(: simulated-annealing-generic (-> Deme (TruthTableBScore $a) Instance $constParams $hyperParams  $scorerParams $scorerType $estimateneighborhoodFn $transformfn
+;                              $sampleNewInstancesfn $crossoverfn $$params (Instance Deme $state)))
 ( =(simulated-annealing-generic $POA
                                 $table
                                 $initCenter
@@ -112,12 +105,17 @@
                                 $sampleNewInstancesfn
                                 $crossoverfn
 
+                                
                             )
+    ;; i want to add some log to check if generic is being called if it is cheking the temprature with final temp
+    ((println! (Starting simulated annealing generic...)))
+      ;;termination condition
     (if (or (<= $Temp $finalTemp) (<= $maxIter 0))
-          ($prevCenter  $POA ($prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i))
+          ($prevCenter  $POA ($prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i) )
 
           ;;continue search
           (let* (
+            ;;logging
             (()(println! (Iteration : $i, Temperature : $Temp)))
             (() (println! ""))
 
@@ -239,4 +237,11 @@
 
 
               )))
-            ))))
+            )))
+
+
+
+            
+
+;; test for simulate annealing generic
+!(simulated-annealing-generic deme table (mkInst (Cons 0 (Cons 0 Nil))) (1 3 0) (20 0.01 0.1 True 5) () () (False False (mkInst (Cons 0 (Cons 0 Nil))) (worstCscore) (* -1 (pow-math 10 308)) 0 0 1) estimateNeighborhood transform crossover sampleNewInstances)
