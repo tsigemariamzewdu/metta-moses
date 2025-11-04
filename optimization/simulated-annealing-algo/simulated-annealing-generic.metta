@@ -101,75 +101,78 @@
                                 
                             )
     ;; i want to add some log to check if generic is being called if it is cheking the temprature with final temp
-    (!(println! "Starting simulated annealing generic...")
-      ;;termination condition
+    
     (if (or (<= $Temp $finalTemp) (<= $maxIter 0))
           ($prevCenter  $POA ($prevCenter $bestRawOrCScore $bestScore $currentNInstances $d $i) )
 
           ;;continue search
-          (let* (
-            ;;logging
-            (()(println! (Iteration : $i, Temperature : $Temp)))
-            (() (println! ""))
+          (let* 
+            (
+              ;;logging
+              (()(println! (Iteration : $i , Temperature : $Temp)))
+              (() (println! ""))
 
-            ($isFS (== $crossoverFn crossoverFs)) ;;flag to detect feature selection
-
-            ($estimateVar (if $isFS 
-                  (($labels (extractLabelFromTable $table)))
-                  (($disc (extractDiscFromPOA $POA)))))
-
-          ;;neighborhood estimation
-
-          ($totalNNeighbors ($estimateneighborhoodfn $d $estimateVar))
-          (() (println! (Estimated neighbors: $totalNNeighbors)))
-          (() (println! ""))
-
-          ($nNewNeighbors (min $totalNNeighbors 2))
-          ($largeNbh (>= $totalNNeighbors $minXoverNeighbors))
-          ($xOver (and (> $i 2) (and (not $alreadyXover) (or $largeNbh $lastChance))))
-
-
-          ;;instance generation
-          (($updatedPOA $newInstances) (if $isFS 
-                                                (if $xOver
-                                                  ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
-                                                  ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $table $POA $d
-                                                ))
-                                                ( if $xOver
-                                                  ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
-                                                  ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $POA $d)
-                                                )))
-          
-          (($updatedInstSet) (if $isFS 
-                                    ($updatedPOA)
-                                    (extractInstancesFromPOA $updatedPOA)
-          ))
-
-
-          (() (println! (New instances: $updatedInstSet)))
-          (() (println! ""))
-
-          ($repOrItable (if $isFS 
-                              $table
-                              (extractRepFromPOA $updatedPOA)
-          ))
-          ($iTableOrScorerParams (if $isFS 
-                                      ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
-                                      $table
-          ))
-          ($cpxCoeffOrscorerType (if $isFS
-                                      $scorerType
-                                      (extractCpxCoeffFromTable $table)
-          ))
-         
-          ;;score the new instance
-          ((mkSInstSet $scoredInstances) $transformFn $updatedInstSet $repOrItable  $iTableOrScorerParams $cpxCoeffOrscorerType))
-                                                    
-
-          (() (println! (Scored instances: $scoredInstances)))
-          (() (println! ""))
+              ($isFS (== $crossoverfn crossoverFs)) ;;flag to detect feature selection
               
+              (() (println! (Is feature selection: $isFS , )))
+              (() (println! ""))
+
+              ($estimateVar (if $isFS 
+                    (($labels (extractLabelFromTable $table)))
+                    (($disc (extractDiscFromPOA $POA)))))
+
+              ;;neighborhood estimation
+
+              ($totalNNeighbors ($estimateneighborhoodfn $d $estimateVar))
+              (() (println! (Estimated neighbors: $totalNNeighbors)))
+              (() (println! ""))
+
+              ($nNewNeighbors (min $totalNNeighbors 2))
+              ($largeNbh (>= $totalNNeighbors $minXoverNeighbors))
+              ($xOver (and (> $i 2) (and (not $alreadyXover) (or $largeNbh $lastChance))))
+
+
+              ;;instance generation
+              (($updatedPOA $newInstances) (if $isFS 
+                                                    (if $xOver
+                                                      ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
+                                                      ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $table $POA $d
+                                                    ))
+                                                    ( if $xOver
+                                                      ($crossoverfn $currentNInstances $nNewNeighbors $prevCenter $POA)
+                                                      ($sampleNewInstancesfn $totalNNeighbors $nNewNeighbors $prevCenter $POA $d)
+                                                    )))
               
+              (($updatedInstSet) (if $isFS 
+                                        ($updatedPOA)
+                                        (extractInstancesFromPOA $updatedPOA)
+              ))
+
+
+              (() (println! (New instances: $updatedInstSet)))
+              (() (println! ""))
+
+              ($repOrItable (if $isFS 
+                                  $table
+                                  (extractRepFromPOA $updatedPOA)
+              ))
+              ($iTableOrScorerParams (if $isFS 
+                                          ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
+                                          $table
+              ))
+              ($cpxCoeffOrscorerType (if $isFS
+                                          $scorerType
+                                          (extractCpxCoeffFromTable $table)
+              ))
+            
+              ;;score the new instance
+              ((mkSInstSet $scoredInstances) $transformFn $updatedInstSet $repOrItable  $iTableOrScorerParams $cpxCoeffOrscorerType)
+                                                        
+
+              (() (println! (Scored instances: $scoredInstances)))
+              (() (println! ""))
+                  
+                
               ;;find best 
               ((mkSInst $newBestInstPair)
               (List.foldl ((curry2 returnBest) <)
@@ -179,7 +182,7 @@
               
               ($newBestScore (if ($isFS 
                                 (Pair.second $newBestInstPair )
-                                (getPenScore (Pair.second $newBestInstPair)))
+                                (getPenScore (Pair.second $newBestInstPair)))))
               ($hasImproved (> $newBestScore (+ $bestScore 0.5)))
 
               (() (println! (New best instance: $newBestInstPair)))
@@ -188,7 +191,7 @@
 
               ;; energy calculation
               ($energy (if $isFS (* -1 $bestRawOrCScore )(getEnergy $bestRawOrCScore)))
-              ($newEnergy (if $isFS (* -1 (Pair.second $newBestInstPair) (getEnergy (Pair.second $newBestInstPair)))
+              ($newEnergy (if $isFS (* -1 (Pair.second $newBestInstPair) )(getEnergy (Pair.second $newBestInstPair))))
               ($acceptanceProb (acceptanceProb $energy $newEnergy $Temp))
               ($randomFloat (rand-random))
               ($actualAcceptanceProb (* $acceptanceProb 0.85))
@@ -214,7 +217,7 @@
 
             ;; recursive call
             (simulated-annealing-generic 
-              $newDeme $table $newCenter
+              $newDeme $table $initCenter
               ($maxDist $minXoverNeighbors $bestPossibleScore)
               ($newTemp $finalTemp $coolRate False $newIterCount)
               ($miConfi $prePenalty $preMinActivation $preMaxActivation $prePositive)
@@ -222,22 +225,16 @@
               ((and $xOver (not $hasImproved)) $lastChance 
                 $newCenter $newBestCScore $newBestScore 
                 $updatedNumInstances $newDistance (+ 1 $i))
-              ($estimateNeighborhoodFn)
+              $estimateNeighborhoodFn
               $transformFn
               $sampleNewInstancesFn
               $crossoverFn)
                 
 
 
-              )))))
-            ))
-
-
-
-;; test for simulated annealing with feature selection
-;;!(simulated-annealing  0 0 0 (20 0.01 0.1 True 5)  mi )
-
-;; test for simulate annealing generic
-;; !(simulated-annealing-generic deme table (mkInst (Cons 0 (Cons 0 Nil))) (1 3 0) (20 0.01 0.1 True 5) () () (False False (mkInst (Cons 0 (Cons 0 Nil))) (worstCscore) (* -1 (pow-math 10 308)) 0 0 1) estimateNeighborhood transform crossover sampleNewInstances)
+              )))
+      ;;termination condition
+  
+            
 
 
