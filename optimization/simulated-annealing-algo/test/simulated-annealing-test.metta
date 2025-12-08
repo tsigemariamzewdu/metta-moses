@@ -53,14 +53,12 @@
 !(import! &self ../../../../metta-moses/optimization/simulated-annealing-algo/simulated-annealing)
 
 
-; import modules
-(= math (py-call (importlib.import_module math)))
-(= random (py-call (importlib.import_module random)))
 
-; wrappers
-(= (math-exp $x) (py-call (math.exp $x)))
+
+
 (= (rand-random) (py-call (random.random)))
-(= (rand-seed $x) (py-call (random.seed $x)))
+
+
 
 
 (= (deme) (mkDeme (mkRep (mkKbMap (mkDscKbMp (ConsMap ((mkNodeId (1)) 0) (ConsMap ((mkNodeId (2)) 1) NilMap))) (mkDscMp (ConsMMap ((mkDiscSpec 3) (mkLSK (mkDiscKnob (mkKnob (mkNodeId (1))) (mkMultip 3) (mkDiscSpec 0) (mkDiscSpec 0) Nil) )) (ConsMMap ((mkDiscSpec 3) (mkLSK (mkDiscKnob (mkKnob (mkNodeId (2))) (mkMultip 3) (mkDiscSpec 0) (mkDiscSpec 0) Nil))) NilMMap)))) (mkTree (mkNode AND) (Cons (mkNullVex (Cons (mkTree (mkNode A) Nil) Nil)) (Cons (mkNullVex (Cons (mkTree (mkNode B) Nil) Nil)) Nil)))) (mkSInstSet Nil) (mkDemeId "1")))
@@ -82,18 +80,18 @@
                       
 ;;(: isScored (-> (ScoredInstance Cscore) Bool))
 (= (isScored (mkSInst (mkPair $instance $score))) (~= $score (worstCscore)))
-
-;;!(assertEqual 
-  ;;  (let*
-   ;    (
-   ;         (($instance (mkDeme $rep (mkSInstSet $instSet) $id) $state) (simulated-annealing (deme) (table1) (mkInst (Cons 0 (Cons 0 Nil))) (mkParams applyComplexityBasedScore ())))
-    ;        ($instanceCount (eval (List.length $instSet)))
-    ;        ($scoredElems (eval (List.map isScored $instSet)))
-    ;   )
-    ;   ((>= $instanceCount 4) (eval (List.any $scoredElems))) 
-   ; )
-;(True True)
-;)
+!(simulated annealing test ----------)
+!(assertEqual 
+    (let*
+       (
+           (($instance (mkDeme $rep (mkSInstSet $instSet) $id) $state) (simulated-annealing (deme) (table1) (mkInst (Cons 0 (Cons 0 Nil))) (mkParams applyComplexityBasedScore ())))
+            ($instanceCount (eval (List.length $instSet)))
+            ($scoredElems (eval (List.map isScored $instSet)))
+       )
+       ((>= $instanceCount 4) (eval (List.any $scoredElems))) 
+    )
+(True True)
+)
 !(assertEqual 
     (let*
        (
